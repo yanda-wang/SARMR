@@ -1,9 +1,11 @@
-# ARMGA
+# SARMR
 
 # Overview
-Implement for Adversarially Regularized Multi-hop Medication Recommendation with Graph Augmentation
+Implement for Self-supervised Adversarial Regularization model for Medication Recommendation (SARMR)
 
-This is the implement for our model in the paper Adversarially Regularized Multi-hop Medication Recommendation with Graph Augmentation, which aims at recommending medications effectively. ARMGA firstly obtains temporal information from historical admissions, and builds a key-value memory network with patient representations and corresponding medications. Then ARMGA carries out multi-hop reading on the memory network to model interactions between patients and physicians while a graph neural network is used to embed the results into meaningful embeddings. Meanwhile, ARMGA regulate the distribution of patient representations with a Generative Adversarial Network (GAN) to match it to a desired Gaussian distribution for DDI reduction
+This is the implement for our model in the paper Adversarially Regularized Multi-hop Medication Recommendation with Graph Augmentation, which aims at recommending medications effectively. 
+
+SARMR obtains informative patterns from raw EHRs for adversarial regularization to shape distributions of patient representations for Drug-Drug Interaction (DDI) reduction, and such a self-supervised adversarial regulrization requires no extra external knowledge about DDI. SARMR firstly obtains temporal information from historical admissions, and builds a key-value memory network with patient representations and corresponding medications. Then SARMR carries out multi-hop reading on the memory network to model interactions between patients and physicians while a graph neural network is used to embed the results into meaningful embeddings. Meanwhile, SARMR regulate the distribution of patient representations with a Generative Adversarial Network (GAN) to match it to a desired Gaussian distribution for DDI reduction.
 
 # Requirment
 Pytorch 1.1
