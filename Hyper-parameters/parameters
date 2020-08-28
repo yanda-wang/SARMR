@@ -1,0 +1,45 @@
+# Final parameters
+
+## Encoder
+
+input_size:200
+encoder_n_layers:1
+encoder_embedding_dropout_rate:0.42712854636167585
+encoder_gru_dropout_rate:0.4538583101720558
+encoder_optimizer_learning_rate:3.6919940785290264e-05
+
+## Predictor
+
+predictor_dropout_rate:0.7150949191797009
+predictor_hop:19
+predictor_attn_type_kv:dot
+predictor_attn_type_embedding:dot
+predictor_optimizer_learning_rate:8.122555978382895e-05
+
+## Discriminator
+
+dropout_rate:0.14645679681788884
+n_hidden_layers:8
+dim_B:79
+dim_C:86
+batch_size:16
+learning_rate:2.6059618481330594e-06
+weight_decay:0
+accuracy:0.8562037797863599
+
+# Range of values tried per parameter
+
+## Encoder
+input size: 64,128,200,256,300,400
+input_size:64,128,200,256,300,400
+encoder_n_layers:[1,5]
+encoder_embedding_dropout_rate:[1e-5,1e-2]
+encoder_gru_dropout_rate:[0,1]
+encoder_optimizer_learning_rate:[0,1]
+
+## Predictor
+predictor_dropout_rate:[0,1]
+predictor_hop:[1,20]
+predictor_attn_type_kv:dot, general, concat
+predictor_attn_type_embedding: dot, general, concat
+predictor_optimizer_learning_rate:[1e-5,1e-2]
