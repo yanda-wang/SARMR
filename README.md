@@ -17,15 +17,23 @@ Python 3.7
 Experiments are carried out based on [MIMIC-III](https://mimic.physionet.org)， which is a real-world Electoric Healthcare Records (EHRs) dataset, and it collects clinical information related to over 45,000 patients. The diagnoses and procedures are used as inputs of SARMR, and the medications prescribed in the first 24 hours of each admission are selected out as ground truths.
 
 To prepare the datasets, get the following three tables from [MIMIC-III](https://mimic.physionet.org):
+
 PRESCRIPTIONS.csv
+
 DIAGNOSES_ICD.csv
+
 PROCEDURES_ICD.csv
 
 Then prepare the following datasets:
+
 ndc2rxnorm_mapping.txt
+
 ndc2atc_level4.csv
+
 drug-atc.csv
+
 drug_stitch2atc.csv
+
 drug-DDI.csv
 
 you can find the first four datasets in the file data, and drug-DDI.csv could be downloaded [here](https://www.dropbox.com/s/8os4pd2zmp2jemd/drug-DDI.csv?dl=0)
