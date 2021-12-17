@@ -1,4 +1,4 @@
-import random
+import dill
 
 import numpy as np
 import torch
@@ -18,9 +18,11 @@ PATIENT_RECORDS_FILE = params.PATIENT_RECORDS_FILE_ACCUMULATE
 CONCEPTID_FILE = params.CONCEPTID_FILE
 EHR_MATRIX_FILE = params.EHR_MATRIX_FILE
 device = params.device  # torch.device("cuda" if USE_CUDA else "cpu")
-MEDICATION_COUNT = params.MEDICATION_COUNT  # 143
-DIAGNOSES_COUNT = params.DIAGNOSES_COUNT  # 1999
-PROCEDURES_COUNT = params.PROCEDURES_COUNT  # 1327
+
+concept2id_object = dill.load(open(CONCEPTID_FILE, 'rb'))
+MEDICATION_COUNT = concept2id_object.get('concept2id_prescriptions').get_concept_count()
+DIAGNOSES_COUNT = concept2id_object.get('concept2id_diagnoses').get_concept_count()
+PROCEDURES_COUNT = concept2id_object.get('concept2id_procedures').get_concept_count()
 
 OPT_SPLIT_TAG_ADMISSION = params.OPT_SPLIT_TAG_ADMISSION  # -1
 OPT_SPLIT_TAG_VARIABLE = params.OPT_SPLIT_TAG_VARIABLE  # -2
@@ -37,9 +39,8 @@ LOSS_PROPORTION_MULTI = params.LOSS_PROPORTION_Multi_Margin  # 0.1
 
 # define the encoder-decoder model
 class MedRecSeq2Set(nn.Module):
-    def __init__(self, device, encoder_type, decoder_type, input_size, hidden_size, **kwargs):
+    def __init__(self, device, input_size, hidden_size, **kwargs):
         super().__init__()
-
         self.encoder = EncoderLinearQuery(device=device, input_size=input_size, hidden_size=hidden_size,
                                           **params_for('encoder', kwargs))
         self.decoder = DecoderKeyValueGCNMultiEmbedding(device=device, hidden_size=hidden_size,
@@ -148,7 +149,7 @@ class MedRecTrainer(skorch.NeuralNet):
             # except RuntimeWarning:
             #     print(output)
 
-        return np.array(y_probas)
+        return np.array(y_probas, dtype=object)
 
     def predict_proba(self, X):
         return self._predict(X, most_probable=False)
