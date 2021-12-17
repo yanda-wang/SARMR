@@ -61,8 +61,11 @@ PrepareDataset.py: prepare all the files you need to conducts experiments.
 Parameters.py: global parameters for model.
 
 After preparing all the required datasets:
+
 (1) run the function MedRecTraining in Training.py to train SARMR with records of patients whose DDI rates are smaller then the preset threshold, you can find the saved models in the directory specified by "save_model_dir";
+
 (2) run the function fit_distribution_from_encoder in Training.py to fit a Gaussian distribution based on the model obtained in (1), you can find the data sampled from the distribution in the directory specified by "real_data_save_path", which would act as real data to train the GAN model;
+
 (3) run the function MedRecGANTraining in Training.py to train SARMR, you can find the model in the directory specified by "save_model_path".
 
 # Hyper-parameters
