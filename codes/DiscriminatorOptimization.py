@@ -204,4 +204,4 @@ if __name__ == '__main__':
     #
     if not os.path.exists(OPTIMIZATION_LOG_PATH):
         os.makedirs(OPTIMIZATION_LOG_PATH)
-    optimize(11)
+    optimize(25)
