@@ -1,3 +1,4 @@
+import dill
 import torch
 import os
 import datetime
@@ -40,8 +41,10 @@ class TrainMedRec:
         self.ddi_matrix_file = ddi_matrix_file
         self.concept2id_mapping_file = concept2id_mapping_file
 
-        self.ddi_matrix = np.load(self.ddi_matrix_file)['ddi_matrix']
-        concept2id_object = np.load(concept2id_mapping_file)
+        # self.ddi_matrix = np.load(self.ddi_matrix_file)['ddi_matrix']
+        self.ddi_matrix = dill.load(open(self.ddi_matrix_file, 'rb'))['ddi_matrix']
+        # concept2id_object = np.load(concept2id_mapping_file)
+        concept2id_object = dill.load(open(concept2id_mapping_file, 'rb'))
         self.concept2id_medications = concept2id_object['concept2id_prescriptions']
         self.medication_count = self.concept2id_medications.get_concept_count()
         self.diagnoses_count = concept2id_object['concept2id_diagnoses'].get_concept_count()
@@ -50,7 +53,8 @@ class TrainMedRec:
         self.ehr_matrix_file = ehr_matrix_file
         self.ehr_matrix = None
         if self.ehr_matrix_file is not None:
-            self.ehr_matrix = np.load(self.ehr_matrix_file)
+            # self.ehr_matrix = np.load(self.ehr_matrix_file)
+            self.ehr_matrix = dill.load(open(self.ehr_matrix_file, 'rb'))
 
         self.evaluate_utils = EvaluationUtil(ddi_matrix_file)
 
@@ -171,26 +175,6 @@ class TrainMedRec:
                             epoch, datetime.datetime.now(), trained_n_iteration,
                             trained_n_iteration / total_planned_iteration * 100, print_loss_avg))
 
-                    # encoder.eval()
-                    # decoder.eval()
-                    # jaccard_avg, precision_avg, recall_avg, f1_avg, delta_ddi_rate, coverage, print_loss_avg_on_test = self.get_performance_on_testset(
-                    #     encoder, decoder, data_loader_test, print_every_iteration, proportion_bce, proportion_multi)
-                    # encoder.train()
-                    # decoder.train()
-                    #
-                    # print(
-                    #     'epoch: {}; time: {}; Iteration: {}; Percent complet: {:.4f}%; train loss: {:.4f}; test loss: {:.4f}; jaccard_test: {:.4f}; precision_test: {:.4f}; recall_test: {:.4f}; f1_test: {:.4f}; delta_ddi_rate_test: {:.4f}; converage_test: {:.4f}'.format(
-                    #         epoch, datetime.datetime.now(), trained_n_iteration,
-                    #         trained_n_iteration / total_planned_iteration * 100, print_loss_avg,
-                    #         print_loss_avg_on_test, jaccard_avg, precision_avg, recall_avg, f1_avg, delta_ddi_rate,
-                    #         coverage))
-                    # log_file.write(
-                    #     'epoch: {}; time: {}; Iteration: {}; Percent complet: {:.4f}%; train loss: {:.4f}; test loss: {:.4f}; jaccard_test: {:.4f}; precision_test: {:.4f}; recall_test: {:.4f}; f1_test: {:.4f}; delta_ddi_rate_test: {:.4f}; converage_test: {:.4f}\n'.format(
-                    #         epoch, datetime.datetime.now(), trained_n_iteration,
-                    #         trained_n_iteration / total_planned_iteration * 100, print_loss_avg,
-                    #         print_loss_avg_on_test, jaccard_avg, precision_avg, recall_avg, f1_avg, delta_ddi_rate,
-                    #         coverage))
-
             encoder.eval()
             decoder.eval()
             jaccard_avg, precision_avg, recall_avg, f1_avg, delta_ddi_rate, coverage, print_loss_avg_on_test, prauc_avg = self.get_performance_on_testset(
@@ -234,8 +218,8 @@ class TrainMedRec:
         log_file.close()
 
     def train(self, input_size, hidden_size, encoder_n_layers, encoder_embedding_dropout_rate, encoder_gru_dropout_rate,
-              encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, encoder_type, decoder_dropout_rate,
-              decoder_regular_lambda, decoder_learning_rate, decoder_type, hop, attn_type_kv, attn_type_embedding,
+              encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, decoder_dropout_rate,
+              decoder_regular_lambda, decoder_learning_rate, hop, attn_type_kv, attn_type_embedding,
               save_model_dir, proportion_bce, proportion_multi, medrec_patient_ddi_rate,
               n_epoch=50, print_every_iteration=100, save_every_epoch=5, load_model_name=None,
               pretrained_embedding_diagnoses=None, pretrained_embedding_procedures=None,
@@ -310,36 +294,14 @@ class TrainMedRec:
                 gan_trained_iteration = gan_trained_iteration_sd
                 gan_patient_ddi_rate = gan_patient_ddi_rate_sd
 
-        # set save_model_path
-        if discriminator_structure is not None:
-            save_model_structure = encoder_type + '_' + decoder_type + '_' + str(encoder_n_layers) + '_' + str(
-                input_size) + '_' + str(hidden_size) + '_' + str(encoder_bidirectional) + '_' + str(
-                attn_type_kv) + '_' + str(attn_type_embedding) + '_' + str(discriminator_structure)
-            save_model_parameters = str(encoder_embedding_dropout_rate) + '_' + str(
-                encoder_gru_dropout_rate) + '_' + str(encoder_regular_lambda) + '_' + str(
-                encoder_learning_rate) + '_' + str(decoder_dropout_rate) + '_' + str(
-                decoder_regular_lambda) + '_' + str(decoder_learning_rate) + '_' + str(hop) + '_' + str(
-                discriminator_parameters)
-
-        else:
-            save_model_structure = encoder_type + '_' + decoder_type + '_' + str(encoder_n_layers) + '_' + str(
-                input_size) + '_' + str(hidden_size) + '_' + str(encoder_bidirectional) + '_' + str(
-                attn_type_kv) + '_' + str(attn_type_embedding) + '_None'
-            save_model_parameters = str(encoder_embedding_dropout_rate) + '_' + str(
-                encoder_gru_dropout_rate) + '_' + str(encoder_regular_lambda) + '_' + str(
-                encoder_learning_rate) + '_' + str(decoder_dropout_rate) + '_' + str(
-                decoder_regular_lambda) + '_' + str(decoder_learning_rate) + '_' + str(hop) + '_None'
-        save_model_path = os.path.join(save_model_dir, save_model_structure, save_model_parameters)
-
         self.trainIters(encoder, decoder, encoder_optimizer, decoder_optimizer, data_loader_train, data_loader_test,
-                        save_model_path, n_epoch, print_every_iteration, save_every_epoch, proportion_bce,
+                        save_model_dir, n_epoch, print_every_iteration, save_every_epoch, proportion_bce,
                         proportion_multi, medrec_trained_epoch, medrec_trained_iteration, gan_trained_epoch,
                         gan_trained_iteration, gan_patient_ddi_rate)
 
     def get_hidden_states_between_thresholds(self, input_size, hidden_size, encoder_n_layers, encoder_bidirectional,
                                              load_model_name, patient_recodrs_file, data_mode,
-                                             medrec_patient_ddi_rate_low, medrec_patient_ddi_rate_high, file_save_path,
-                                             encoder_structure_str, encoder_parameters_str):
+                                             medrec_patient_ddi_rate_low, medrec_patient_ddi_rate_high, file_save_path):
         """
         return the hidden states of patients whose ddi rate belongs to (medrec_patient_ddi_rate_low,medrec_patient_ddi_rate_high]
         """
@@ -375,18 +337,18 @@ class TrainMedRec:
 
         print('total number of samples:{}'.format(hidden_state.shape[0]))
 
-        directory = os.path.join(file_save_path, encoder_structure_str, encoder_parameters_str)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        print('save data to directory:', directory)
+        print('save data to directory:', file_save_path)
+        if not os.path.exists(file_save_path):
+            os.makedirs(file_save_path)
+
         # pickle.dump(hidden_state, open(os.path.join(directory, 'encoder_hidden_state'), 'wb'), protocol=2)
-        np.save(os.path.join(directory, 'encoder_hidden_state_{}_{}'.format(str(medrec_patient_ddi_rate_low),
-                                                                            str(medrec_patient_ddi_rate_high))),
+        np.save(os.path.join(file_save_path, 'encoder_hidden_state_{}_{}'.format(str(medrec_patient_ddi_rate_low),
+                                                                                 str(medrec_patient_ddi_rate_high))),
                 hidden_state)
 
-    def get_hidden_states(self, input_size, hidden_size, encoder_n_layers, encoder_bidirectional, encoder_type,
-                          load_model_name, medrec_patient_ddi_rate, file_save_path, encoder_structure_str,
-                          encoder_parameters_str, data_mode='train'):
+    def get_hidden_states(self, input_size, hidden_size, encoder_n_layers, encoder_bidirectional, load_model_name,
+                          medrec_patient_ddi_rate, file_save_path, encoder_structure_str, encoder_parameters_str,
+                          data_mode='train'):
 
         print('initializing >>>')
 
@@ -444,9 +406,8 @@ class TrainMedRec:
         return A3
 
     def fit_gaussian_from_encoder(self, input_size, hidden_size, encoder_n_layers, encoder_bidirectional,
-                                  load_model_name, medrec_patient_ddi_rate, real_data_save_path, encoder_structure_str,
-                                  encoder_parameters_str, decimals=6, boxcox_transform=False, boxcox_lambda=None,
-                                  standard=False):
+                                  load_model_name, medrec_patient_ddi_rate, real_data_save_path, decimals=6,
+                                  boxcox_transform=False, boxcox_lambda=None, standard=False):
 
         print('initializing >>>')
 
@@ -489,7 +450,7 @@ class TrainMedRec:
             #        lambda=None: find the most likely lambda
         hidden_state = hidden_state.round(decimals=decimals)
 
-        print('hidden state:', hidden_state)
+        # print('hidden state:', hidden_state)
 
         mean = np.mean(hidden_state, axis=0)
         if standard:
@@ -500,8 +461,8 @@ class TrainMedRec:
         if not self.isPD(cov):
             print('cov is not positive definite, covert to the nearest one')
             cov = self.nearest_PD(cov)
-        print('mean:', mean)
-        print('cov:', cov)
+        # print('mean:', mean)
+        # print('cov:', cov)
 
         print('sample data from the fitted distribution>>>')
         real_data = []
@@ -509,21 +470,21 @@ class TrainMedRec:
             real_data.append(np.random.multivariate_normal(mean, cov))
         real_data = np.array(real_data)
 
-        directory = os.path.join(real_data_save_path, encoder_structure_str, encoder_parameters_str)
-        print('save real data to:', directory)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        print('save real data to:', real_data_save_path)
+        if not os.path.exists(real_data_save_path):
+            os.makedirs(real_data_save_path)
+
         result = {'mean': mean,
                   'cov': cov,
                   'real_data': real_data}
 
         pickle.dump(result,
-                    open(os.path.join(directory,
-                                      'real_data_{}_{}_{}_ddi_rate_{}_standard_{}'.format(str(decimals),
-                                                                                          str(boxcox_transform),
-                                                                                          str(boxcox_lambda),
-                                                                                          str(medrec_patient_ddi_rate),
-                                                                                          str(standard))), 'wb'))
+                    open(os.path.join(real_data_save_path,
+                                      'real_data_{}_{}_{}_ddi_rate_{}_standard_{}.pkl'.format(str(decimals),
+                                                                                              str(boxcox_transform),
+                                                                                              str(boxcox_lambda),
+                                                                                              str(medrec_patient_ddi_rate),
+                                                                                              str(standard))), 'wb'))
 
 
 class TrainMedRecGANPremiumSingleDisNormal:
@@ -536,10 +497,11 @@ class TrainMedRecGANPremiumSingleDisNormal:
         self.ddi_matrix_file = ddi_matrix_file
         self.ehr_matrix_file = ehr_matrix_file
         self.batch_size = batch_size
-        self.encoder_type = None
 
-        self.ddi_matrix = np.load(self.ddi_matrix_file)['ddi_matrix']
-        concept2id_object = np.load(concept2id_mapping_file)
+        # self.ddi_matrix = np.load(self.ddi_matrix_file)['ddi_matrix']
+        self.ddi_matrix = dill.load(open(self.ddi_matrix_file, 'rb'))['ddi_matrix']
+        # concept2id_object = np.load(concept2id_mapping_file)
+        concept2id_object = dill.load(open(concept2id_mapping_file, 'rb'))
         self.concept2id_medications = concept2id_object['concept2id_prescriptions']
         self.medication_count = self.concept2id_medications.get_concept_count()
         self.diagnoses_count = concept2id_object['concept2id_diagnoses'].get_concept_count()
@@ -548,7 +510,8 @@ class TrainMedRecGANPremiumSingleDisNormal:
         self.ehr_matrix_file = ehr_matrix_file
         self.ehr_matrix = None
         if self.ehr_matrix_file is not None:
-            self.ehr_matrix = np.load(self.ehr_matrix_file)
+            # self.ehr_matrix = np.load(self.ehr_matrix_file)
+            self.ehr_matrix = dill.load(open(self.ehr_matrix_file, 'rb'))
 
         self.evaluate_utils = EvaluationUtil(ddi_matrix_file)
 
@@ -785,25 +748,19 @@ class TrainMedRecGANPremiumSingleDisNormal:
                     print_D_G_z1 = 0
                     print_D_G_z2 = 0
 
-                    gradient_discriminator = torch.mean(discriminator.output.weight.grad)
-                    if self.encoder_type == 'LinearQuery':
-                        gradient_generator = torch.mean(encoder.linear_embedding[-1].weight.grad)
-                    else:
-                        gradient_generator = 0
-
                     print(
-                        'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x):: {:.4f}; D(G(z1)): {:.4f}; D(G(z2)); {:.4f}; gradient_D: {:.5f}; gradient_G: {:.5f}'.format(
+                        'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x):: {:.4f}; D(G(z1)): {:.4f}; D(G(z2)); {:.4f}'.format(
                             epoch, datetime.datetime.now(), medrec_trained_iterations,
                             medrec_trained_iterations / total_planned_iteration * 100, gan_trained_iterations,
                             print_loss_medrec_avg, print_loss_D_avg, print_loss_G_avg, print_D_x_avg, print_D_G_z1_avg,
-                            print_D_G_z2_avg, gradient_discriminator, gradient_generator))
+                            print_D_G_z2_avg))
 
                     log_file.write(
-                        'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x):: {:.4f}; D(G(z1)): {:.4f}; D(G(z2)); {:.4f}; gradient_D: {:.5f}; gradient_G: {:.5f}\n'.format(
+                        'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x):: {:.4f}; D(G(z1)): {:.4f}; D(G(z2)); {:.4f}\n'.format(
                             epoch, datetime.datetime.now(), medrec_trained_iterations,
                             medrec_trained_iterations / total_planned_iteration * 100, gan_trained_iterations,
                             print_loss_medrec_avg, print_loss_D_avg, print_loss_G_avg, print_D_x_avg, print_D_G_z1_avg,
-                            print_D_G_z2_avg, gradient_discriminator, gradient_generator))
+                            print_D_G_z2_avg))
 
             encoder.eval()
             decoder.eval()
@@ -813,20 +770,20 @@ class TrainMedRecGANPremiumSingleDisNormal:
             decoder.train()
 
             print(
-                'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; medrec_loss_test: {:.4f}; jaccard_test: {:.4f}; precision_test: {:.4f}; recall_test: {:.4f}; f1_test: {:.4f}; delta_ddi_rate_test: {:.4f}; coverage_test: {:.4f}; prauc_test: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x): {:.4f}; D(G(z1)): {:.4f}; D(G(z2)): {:.4f}; gradient_D: {:.5f}; gradient_G: {:.5f}'.format(
+                'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; medrec_loss_test: {:.4f}; jaccard_test: {:.4f}; precision_test: {:.4f}; recall_test: {:.4f}; f1_test: {:.4f}; delta_ddi_rate_test: {:.4f}; coverage_test: {:.4f}; prauc_test: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x): {:.4f}; D(G(z1)): {:.4f}; D(G(z2)): {:.4f}'.format(
                     epoch, datetime.datetime.now(), medrec_trained_iterations,
                     medrec_trained_iterations / total_planned_iteration * 100, gan_trained_iterations,
                     print_loss_medrec_avg, print_loss_medrec_avg_test, jaccard_avg, precision_avg, recall_avg, f1_avg,
                     delta_ddi_rate, coverage, prauc, print_loss_D_avg, print_loss_G_avg, print_D_x_avg,
-                    print_D_G_z1_avg, print_D_G_z2_avg, gradient_discriminator, gradient_generator))
+                    print_D_G_z1_avg, print_D_G_z2_avg))
 
             log_file.write(
-                'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; medrec_loss_test: {:.4f}; jaccard_test: {:.4f}; precision_test: {:.4f}; recall_test: {:.4f}; f1_test: {:.4f}; delta_ddi_rate_test: {:.4f}; coverage_test: {:.4f}; prauc_test: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x): {:.4f}; D(G(z1)): {:.4f}; D(G(z2)): {:.4f}; gradient_D: {:.5f}; gradient_G: {:.5f}\n'.format(
+                'epoch: {};time: {}; iteration: {}; percent complete: {:.4f}%; gan iteration: {}; medrec_loss_train: {:.4f}; medrec_loss_test: {:.4f}; jaccard_test: {:.4f}; precision_test: {:.4f}; recall_test: {:.4f}; f1_test: {:.4f}; delta_ddi_rate_test: {:.4f}; coverage_test: {:.4f}; prauc_test: {:.4f}; gan_loss_D: {:.4f}; gan_loss_G: {:.4f}; D(x): {:.4f}; D(G(z1)): {:.4f}; D(G(z2)): {:.4f}\n'.format(
                     epoch, datetime.datetime.now(), medrec_trained_iterations,
                     medrec_trained_iterations / total_planned_iteration * 100, gan_trained_iterations,
                     print_loss_medrec_avg, print_loss_medrec_avg_test, jaccard_avg, precision_avg, recall_avg, f1_avg,
                     delta_ddi_rate, coverage, prauc, print_loss_D_avg, print_loss_G_avg, print_D_x_avg,
-                    print_D_G_z1_avg, print_D_G_z2_avg, gradient_discriminator, gradient_generator))
+                    print_D_G_z1_avg, print_D_G_z2_avg))
 
             if epoch % save_every_epoch == 0:
                 torch.save({'epoch': epoch,
@@ -848,15 +805,15 @@ class TrainMedRecGANPremiumSingleDisNormal:
                             'gan_D_G_z1': print_D_G_z1_avg,
                             'gan_D_G_z2': print_D_G_z2_avg},
                            os.path.join(save_model_path,
-                                        'MedRecGAN_{}_{}_{}_{}'.format(
+                                        'MedRecGAN_{}_{}_{}_{}.checkpoint'.format(
                                             data_loader_medrecGAN.ddi_rate_threshold, epoch, medrec_trained_iterations,
                                             gan_patient_ddi_rate)))
 
         log_file.close()
 
     def train(self, input_size, hidden_size, encoder_n_layers, encoder_embedding_dropout_rate, encoder_gru_dropout_rate,
-              encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, encoder_type, decoder_dropout_rate,
-              decoder_regular_lambda, decoder_learning_rate, decoder_type, hop, attn_type_kv, attn_type_embedding,
+              encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, decoder_dropout_rate,
+              decoder_regular_lambda, decoder_learning_rate, hop, attn_type_kv, attn_type_embedding,
               gan_lr, gan_regular_lambda, gan_single_iteration, discriminator_dropout_rate,
               discriminator_n_hidden_layers, discriminator_dim_B, discriminator_dim_C, medrec_patient_ddi_rate,
               gan_patient_ddi_rate, proprotion_bce, proportion_multi, real_data_file, save_model_path, n_epoch=40,
@@ -876,7 +833,6 @@ class TrainMedRecGANPremiumSingleDisNormal:
             checkpoint = torch.load(load_model_name)
 
         print('bulid model...')
-        self.encoder_type = encoder_type
 
         encoder = EncoderLinearQuery(self.device, input_size, hidden_size, self.diagnoses_count,
                                      self.procedures_count, encoder_n_layers, encoder_embedding_dropout_rate,
@@ -939,18 +895,6 @@ class TrainMedRecGANPremiumSingleDisNormal:
             trained_epoch = checkpoint['epoch']
             trained_medrec_iteration = checkpoint['trained_medrec_iterations']
             trained_gan_iteration = checkpoint['trained_gan_iterations']
-        # set save_path
-        save_model_structure = encoder_type + '_' + decoder_type + '_' + str(encoder_n_layers) + '_' + str(
-            input_size) + '_' + str(hidden_size) + '_' + str(encoder_bidirectional) + '_' + str(
-            attn_type_kv) + '_' + str(attn_type_embedding) + '_MLPPremium_' + str(discriminator_n_hidden_layers)
-
-        save_model_parameters = str(encoder_embedding_dropout_rate) + '_' + str(
-            encoder_gru_dropout_rate) + '_' + str(encoder_regular_lambda) + '_' + str(
-            encoder_learning_rate) + '_' + str(decoder_dropout_rate) + '_' + str(
-            decoder_regular_lambda) + '_' + str(decoder_learning_rate) + '_' + str(hop) + '_' + str(
-            discriminator_dropout_rate) + '_' + str(gan_lr) + '_' + str(gan_regular_lambda) + '_' + str(
-            discriminator_dim_B) + '_' + str(discriminator_dim_C)
-        save_model_path = os.path.join(save_model_path, save_model_structure, save_model_parameters)
 
         self.train_iters(encoder, decoder, discriminator, encoder_optimizer, decoder_optimizer, generator_optimizer,
                          discriminator_optimizer, data_loader_medrecGAN, data_loader_medrec_train,
@@ -961,7 +905,7 @@ class TrainMedRecGANPremiumSingleDisNormal:
 
 def MedRecTraining(input_size, hidden_size, encoder_n_layers, encoder_embedding_dropout_rate,
                    encoder_gru_dropout_rate, encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate,
-                   encoder_type, decoder_dropout_rate, decoder_regular_lambda, decoder_learning_rate, decoder_type, hop,
+                   decoder_dropout_rate, decoder_regular_lambda, decoder_learning_rate, hop,
                    attn_type_kv, attn_type_embedding, save_model_dir, proportion_bce, proportion_multi,
                    medrec_patient_ddi_rate, n_epoch=40, print_every_iteration=100, save_every_epoch=5,
                    load_model_name=None, pretrained_embedding_diagnoses=None, pretrained_embedding_procedures=None,
@@ -969,18 +913,17 @@ def MedRecTraining(input_size, hidden_size, encoder_n_layers, encoder_embedding_
     module = TrainMedRec(params.device, params.PATIENT_RECORDS_FILE_ACCUMULATE, params.DDI_MATRIX_FILE,
                          params.CONCEPTID_FILE, params.EHR_MATRIX_FILE)
     module.train(input_size, hidden_size, encoder_n_layers, encoder_embedding_dropout_rate, encoder_gru_dropout_rate,
-                 encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, encoder_type,
-                 decoder_dropout_rate, decoder_regular_lambda, decoder_learning_rate, decoder_type, hop, attn_type_kv,
-                 attn_type_embedding, save_model_dir, proportion_bce, proportion_multi, medrec_patient_ddi_rate,
-                 n_epoch, print_every_iteration, save_every_epoch, load_model_name, pretrained_embedding_diagnoses,
-                 pretrained_embedding_procedures, pretrained_embedding_medications, discriminator_structure,
-                 discriminator_parameters)
+                 encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, decoder_dropout_rate,
+                 decoder_regular_lambda, decoder_learning_rate, hop, attn_type_kv, attn_type_embedding, save_model_dir,
+                 proportion_bce, proportion_multi, medrec_patient_ddi_rate, n_epoch, print_every_iteration,
+                 save_every_epoch, load_model_name, pretrained_embedding_diagnoses, pretrained_embedding_procedures,
+                 pretrained_embedding_medications, discriminator_structure, discriminator_parameters)
 
 
 def MedRecGANTraining(batch_size, input_size, hidden_size, encoder_n_layers, encoder_embedding_dropout_rate,
                       encoder_gru_dropout_rate, encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate,
-                      encoder_type, decoder_dropout_rate, decoder_regular_lambda, decoder_learning_rate, decoder_type,
-                      hop, attn_type_kv, attn_type_embedding, gan_lr, gan_regular_lambda, gan_single_iteration,
+                      decoder_dropout_rate, decoder_regular_lambda, decoder_learning_rate, hop, attn_type_kv,
+                      attn_type_embedding, gan_lr, gan_regular_lambda, gan_single_iteration,
                       discriminator_dropout_rate, discriminator_n_hidden_layers, discriminator_dim_B,
                       discriminator_dim_C, medrec_patient_ddi_rate, gan_patient_ddi_rate, proprotion_bce,
                       proportion_multi, real_data_file, save_model_path, n_epoch=40, print_every_iteration=100,
@@ -990,43 +933,39 @@ def MedRecGANTraining(batch_size, input_size, hidden_size, encoder_n_layers, enc
                                                  params.PATIENT_RECORDS_FILE_SEPARATE, params.CONCEPTID_FILE,
                                                  params.DDI_MATRIX_FILE, params.EHR_MATRIX_FILE, batch_size)
     model.train(input_size, hidden_size, encoder_n_layers, encoder_embedding_dropout_rate, encoder_gru_dropout_rate,
-                encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, encoder_type,
-                decoder_dropout_rate, decoder_regular_lambda, decoder_learning_rate, decoder_type, hop,
-                attn_type_kv, attn_type_embedding, gan_lr, gan_regular_lambda, gan_single_iteration,
-                discriminator_dropout_rate, discriminator_n_hidden_layers, discriminator_dim_B, discriminator_dim_C,
-                medrec_patient_ddi_rate, gan_patient_ddi_rate, proprotion_bce, proportion_multi, real_data_file,
-                save_model_path, n_epoch, print_every_iteration, save_every_epoch, load_model_name,
-                pretrained_embedding_diagnoses, pretrained_embedding_procedures, pretrained_embedding_medications)
+                encoder_bidirectional, encoder_regular_lambda, encoder_learning_rate, decoder_dropout_rate,
+                decoder_regular_lambda, decoder_learning_rate, hop, attn_type_kv, attn_type_embedding, gan_lr,
+                gan_regular_lambda, gan_single_iteration, discriminator_dropout_rate, discriminator_n_hidden_layers,
+                discriminator_dim_B, discriminator_dim_C, medrec_patient_ddi_rate, gan_patient_ddi_rate, proprotion_bce,
+                proportion_multi, real_data_file, save_model_path, n_epoch, print_every_iteration, save_every_epoch,
+                load_model_name, pretrained_embedding_diagnoses, pretrained_embedding_procedures,
+                pretrained_embedding_medications)
 
 
-def fit_distribution_from_encoder(input_size, hidden_size, encoder_n_layers,
-                                  encoder_bidirectional, encoder_type, load_model_name, medrec_patient_ddi_rate,
-                                  real_data_save_path, encoder_structure_str, encoder_parameters_str, decimals=6,
-                                  boxcox_transform=False, boxcox_lambda=None, standard=False):
+def fit_distribution_from_encoder(input_size, hidden_size, encoder_n_layers, encoder_bidirectional, load_model_name,
+                                  medrec_patient_ddi_rate, real_data_save_path, decimals=6, boxcox_transform=False,
+                                  boxcox_lambda=None, standard=False):
     module = TrainMedRec(params.device, params.PATIENT_RECORDS_FILE_ACCUMULATE, params.DDI_MATRIX_FILE,
                          params.CONCEPTID_FILE, params.EHR_MATRIX_FILE)
-    module.fit_gaussian_from_encoder(input_size, hidden_size, encoder_n_layers, encoder_bidirectional, encoder_type,
-                                     load_model_name, medrec_patient_ddi_rate, real_data_save_path,
-                                     encoder_structure_str, encoder_parameters_str, decimals, boxcox_transform,
+    module.fit_gaussian_from_encoder(input_size, hidden_size, encoder_n_layers, encoder_bidirectional, load_model_name,
+                                     medrec_patient_ddi_rate, real_data_save_path, decimals, boxcox_transform,
                                      boxcox_lambda, standard)
 
 
-def get_hidden_states(input_size, hidden_size, encoder_n_layers, encoder_bidirectional, encoder_type, load_model_name,
+def get_hidden_states(input_size, hidden_size, encoder_n_layers, encoder_bidirectional, load_model_name,
                       medrec_patient_ddi_rate, file_save_path, encoder_structure_str, encoder_parameters_str):
     module = TrainMedRec(params.device, params.PATIENT_RECORDS_FILE_ACCUMULATE, params.DDI_MATRIX_FILE,
                          params.CONCEPTID_FILE, params.EHR_MATRIX_FILE)
-    module.get_hidden_states(input_size, hidden_size, encoder_n_layers, encoder_bidirectional, encoder_type,
+    module.get_hidden_states(input_size, hidden_size, encoder_n_layers, encoder_bidirectional,
                              load_model_name, medrec_patient_ddi_rate, file_save_path, encoder_structure_str,
                              encoder_parameters_str)
 
 
 def get_hidden_states_between_threshold(input_size, hidden_size, encoder_n_layer, encoder_bidirectional,
-                                        encoder_type, load_model_name, patient_records_file, data_mode,
-                                        ddi_rate_low, ddi_rate_high, save_data_path, encoder_structure_str,
-                                        encoder_parameters_str):
+                                        load_model_name, patient_records_file, data_mode, ddi_rate_low, ddi_rate_high,
+                                        save_data_path):
     module = TrainMedRec(params.device, params.PATIENT_RECORDS_FILE_ACCUMULATE, params.DDI_MATRIX_FILE,
                          params.CONCEPTID_FILE, params.EHR_MATRIX_FILE)
     module.get_hidden_states_between_thresholds(input_size, hidden_size, encoder_n_layer, encoder_bidirectional,
-                                                encoder_type, load_model_name, patient_records_file, data_mode,
-                                                ddi_rate_low, ddi_rate_high, save_data_path, encoder_structure_str,
-                                                encoder_parameters_str)
+                                                load_model_name, patient_records_file, data_mode, ddi_rate_low,
+                                                ddi_rate_high, save_data_path)
