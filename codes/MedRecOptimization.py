@@ -1,4 +1,7 @@
-import torch
+import os
+
+import dill
+import pandas as pd
 import skorch
 import torch.nn as nn
 import numpy as np
@@ -16,9 +19,10 @@ PATIENT_RECORDS_FILE = params.PATIENT_RECORDS_FILE_ACCUMULATE
 CONCEPTID_FILE = params.CONCEPTID_FILE
 EHR_MATRIX_FILE = params.EHR_MATRIX_FILE
 device = params.device  # torch.device("cuda" if USE_CUDA else "cpu")
-MEDICATION_COUNT = params.MEDICATION_COUNT  # 153
-DIAGNOSES_COUNT = params.DIAGNOSES_COUNT  # 1960
-PROCEDURES_COUNT = params.PROCEDURES_COUNT  # 1432
+concept2id_object = dill.load(open(CONCEPTID_FILE, 'rb'))
+MEDICATION_COUNT = concept2id_object.get('concept2id_prescriptions').get_concept_count()
+DIAGNOSES_COUNT = concept2id_object.get('concept2id_diagnoses').get_concept_count()
+PROCEDURES_COUNT = concept2id_object.get('concept2id_procedures').get_concept_count()
 
 OPT_SPLIT_TAG_ADMISSION = params.OPT_SPLIT_TAG_ADMISSION  # -1
 OPT_SPLIT_TAG_VARIABLE = params.OPT_SPLIT_TAG_VARIABLE  # -2
@@ -31,6 +35,7 @@ OPT_PRETRAINED_EMBEDDING_PROCEDURES = params.PRETRAINED_EMBEDDING_PROCEDURES  # 
 
 OPT_METRIC_TYPE = params.OPT_METRIC_TYPE
 
+LOG_PATH = 'data/log/medrec_opt'
 LOG_FILE = 'data/log/medrec_opt/optimization.log'
 
 
@@ -57,12 +62,14 @@ def get_x_y(patient_records):
         current_y = np.array(patient[-1][0])
         y.append(current_y)
 
-    return np.array(x), np.array(y)
+    return np.array(x, dtype=object), np.array(y, dtype=object)
 
 
 def get_data(patient_records_file, patient_ddi_rate):
-    patient_records_train = np.load(patient_records_file)['train'][patient_ddi_rate]
-    patient_records_test = np.load(patient_records_file)['test'][patient_ddi_rate]
+    patient_records = pd.read_pickle(patient_records_file)
+    patient_records_train = patient_records['train'][patient_ddi_rate]
+    patient_records_test = patient_records['test'][patient_ddi_rate]
+
     train_x, train_y = get_x_y(patient_records_train)
     test_x, test_y = get_x_y(patient_records_test)
     return train_x, train_y, test_x, test_y
@@ -113,23 +120,7 @@ def get_metric(y_predict, y_target, metric='accuracy'):
         raise Exception('invalid metric type, choose from accuracy and f1')
 
 
-# search_space = [Categorical(categories=['64', '128', '200', '256', '300', '400'], name='dimension'),
-#                 Categorical(categories=['LinearQuery', 'RNNQuery'], name='encoder_type'),
-#                 Integer(low=1, high=5, name='encoder_n_layers'),
-#                 Real(low=0, high=1, name='encoder_embedding_dropout_rate'),
-#                 Real(low=0, high=1, name='encoder_gru_dropout_rate'),
-#                 Real(low=0, high=1, name='decoder_dropout_rate'),
-#                 Integer(low=1, high=20, name='decoder_hop'),
-#                 Categorical(categories=['dot', 'general', 'concat'], name='decoder_attn_type_kv'),
-#                 Categorical(categories=['dot', 'general', 'concat'], name='decoder_attn_type_embedding'),
-#                 Real(low=1e-5, high=1e-2, prior='log-uniform', name='optimizer_encoder_learning_rate'),
-#                 Real(low=1e-8, high=1e-2, prior='log-uniform', name='optimizer_encoder_regular_lambda'),
-#                 Real(low=1e-5, high=1e-2, prior='log-uniform', name='optimizer_decoder_learning_rate'),
-#                 Real(low=1e-8, high=1e-2, prior='log-uniform', name='optimizer_decoder_regular_lambda')
-#                 ]
-
 search_space = [Categorical(categories=['64', '128', '200', '256', '300', '400'], name='dimension'),
-                Categorical(categories=['LinearQuery', 'RNNQuery'], name='encoder_type'),
                 Integer(low=1, high=5, name='encoder_n_layers'),
                 Real(low=0, high=1, name='encoder_embedding_dropout_rate'),
                 Real(low=0, high=1, name='encoder_gru_dropout_rate'),
@@ -143,10 +134,9 @@ search_space = [Categorical(categories=['64', '128', '200', '256', '300', '400']
 
 
 @use_named_args(dimensions=search_space)
-def fitness(dimension, encoder_type, encoder_n_layers, encoder_embedding_dropout_rate,
+def fitness(dimension, encoder_n_layers, encoder_embedding_dropout_rate,
             encoder_gru_dropout_rate, decoder_dropout_rate, decoder_hop, decoder_attn_type_kv,
             decoder_attn_type_embedding, optimizer_encoder_learning_rate, optimizer_decoder_learning_rate):
-    decoder_type = params.OPT_DECODER_TYPE
     embedding_diagnoses_np, embedding_procedures_np, embedding_medications_np = None, None, None
     if OPT_PRETRAINED_EMBEDDING_MEDICATION is not None:
         embedding_medications_np = np.load(OPT_PRETRAINED_EMBEDDING_MEDICATION)
@@ -155,7 +145,7 @@ def fitness(dimension, encoder_type, encoder_n_layers, encoder_embedding_dropout
     if OPT_PRETRAINED_EMBEDDING_PROCEDURES is not None:
         embedding_procedures_np = np.load(OPT_PRETRAINED_EMBEDDING_PROCEDURES)
 
-    ehr_matrix = np.load(EHR_MATRIX_FILE)
+    ehr_matrix = pd.read_pickle(EHR_MATRIX_FILE)
 
     input_size = int(dimension)
     hidden_size = int(dimension)
@@ -165,7 +155,6 @@ def fitness(dimension, encoder_type, encoder_n_layers, encoder_embedding_dropout
                           train_split=None, callbacks=[skorch.callbacks.ProgressBar(batches_per_epoch='auto'), ],
                           device=device, module=MedRecSeq2Set, module__device=device,
                           module__input_size=input_size, module__hidden_size=hidden_size,
-                          module__encoder_type=encoder_type,
                           module__encoder__diagnoses_count=DIAGNOSES_COUNT,
                           module__encoder__procedures_count=PROCEDURES_COUNT,
                           module__encoder__n_layers=encoder_n_layers.item(),
@@ -174,7 +163,7 @@ def fitness(dimension, encoder_type, encoder_n_layers, encoder_embedding_dropout
                           module__encoder__embedding_diagnoses_np=embedding_diagnoses_np,
                           module__encoder__embedding_procedures_np=embedding_procedures_np,
                           module__encoder__bidirectional=False,
-                          module__decoder_type=decoder_type, module__decoder__output_size=MEDICATION_COUNT,
+                          module__decoder__output_size=MEDICATION_COUNT,
                           module__decoder__medication_count=MEDICATION_COUNT, module__decoder__hop=decoder_hop,
                           module__decoder__embedding_medications_np=embedding_medications_np,
                           module__decoder__dropout_rate=decoder_dropout_rate,
@@ -194,7 +183,6 @@ def fitness(dimension, encoder_type, encoder_n_layers, encoder_embedding_dropout
 
     print('**********************************')
     print('hyper-parameters')
-    print('encoder type:', encoder_type)
     print('input size:', input_size)
     print('encoder_n_layers:', encoder_n_layers)
     print('encoder_embedding_dropout_rate:', encoder_embedding_dropout_rate)
@@ -212,7 +200,6 @@ def fitness(dimension, encoder_type, encoder_n_layers, encoder_embedding_dropout
     print('metric ' + OPT_METRIC_TYPE + ':{0:.4f}'.format(metric))
 
     log_file = open(LOG_FILE, 'a+')
-    log_file.write('encoder_type:' + encoder_type + '\n')
     log_file.write('input_size:' + str(input_size) + '\n')
     log_file.write('encoder_n_layers:' + str(encoder_n_layers) + '\n')
     log_file.write('encoder_embedding_dropout_rate:' + str(encoder_embedding_dropout_rate) + '\n')
@@ -256,4 +243,6 @@ def optimize(n_calls):
 
 
 if __name__ == "__main__":
+    if not os.path.exists(LOG_PATH):
+        os.makedirs(LOG_PATH)
     optimize(25)
