@@ -18,11 +18,17 @@ HIDDEN_SIZE = params.HIDDEN_SIZE
 NUM_CLASS = params.fitted_distribution_label_num
 MAX_EPOCH = params.OPT_MODEL_MAX_EPOCH
 device = params.device
-FITTED_DISTRIBUTION_FILE_NAME_TRAIN = params.fitted_distribution_file_name_train
-FITTED_DISTRIBUTION_FILE_NAME_TEST = params.fitted_distribution_file_name_test
-ENCODER_OUTPUT_FILE_NAME_TRAIN = params.ENCODER_OUTPUT_TRAIN_FILE_NAME
-ENCODER_OUTPUT_FILE_NAME_TEST = params.ENCODER_OUTPUT_TEST_FILE_NAME
+# FITTED_DISTRIBUTION_FILE_NAME_TRAIN = params.fitted_distribution_file_name_train
+# FITTED_DISTRIBUTION_FILE_NAME_TEST = params.fitted_distribution_file_name_test
+# ENCODER_OUTPUT_FILE_NAME_TRAIN = params.ENCODER_OUTPUT_TRAIN_FILE_NAME
+# ENCODER_OUTPUT_FILE_NAME_TEST = params.ENCODER_OUTPUT_TEST_FILE_NAME
 
+FITTED_DISTRIBUTION_FILE_NAME_TRAIN = 'data/real_data/single_distribution_train.npy'
+FITTED_DISTRIBUTION_FILE_NAME_TEST = 'data/real_data/single_distribution_test.npy'
+ENCODER_OUTPUT_FILE_NAME_TRAIN = 'data/real_data/encoder_output_train.npy'
+ENCODER_OUTPUT_FILE_NAME_TEST = 'data/real_data/encoder_output_test.npy'
+
+OPTIMIZATION_LOG_PATH = 'data/log/discriminatorTuning'
 OPTIMIZATION_LOG_FILE = 'data/log/discriminatorTuning/optimization.log'
 
 
@@ -39,7 +45,8 @@ def split_data_distribution(distribution_data_file, encoder_output_data_file, ou
     if distribution_mode == 'single':
         distribution_train_output_file = os.path.join(output_file_path, 'single_distribution_train')
         distribution_test_output_file = os.path.join(output_file_path, 'single_distribution_test')
-        distribution_data = np.load(distribution_data_file)['real_data']  # np.array
+        # distribution_data = np.load(distribution_data_file)['real_data']  # np.array
+        distribution_data = pickle.load(open(distribution_data_file, 'rb'), encoding='latin1')['real_data']
         distribution_train, distribution_test = train_test_split(distribution_data, test_size=0.2)
     else:
         distribution_train_output_file = os.path.join(output_file_path, 'multi_distribution_train')
@@ -75,8 +82,6 @@ def get_x_y(distribution_data_file, encoder_output_data_file):
     np.random.shuffle(data)
     X = data[:, :-1]
     Y = data[:, -1]  # .reshape((-1, 1))
-
-    print(Y.shape)
 
     X = X.astype('float32')
     Y = Y.astype('float32')
@@ -194,4 +199,9 @@ def optimize(n_calls):
 
 
 if __name__ == '__main__':
-    optimize(10)
+    # split_data_distribution('data/real_data/real_data_6_False_None_ddi_rate_0.4_standard_False',
+    #                         'data/real_data/encoder_hidden_state_0.4_1.npy', 'data/real_data')
+    #
+    if not os.path.exists(OPTIMIZATION_LOG_PATH):
+        os.makedirs(OPTIMIZATION_LOG_PATH)
+    optimize(11)
