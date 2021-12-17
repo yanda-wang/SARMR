@@ -1,8 +1,8 @@
+import dill
+import os
 import torch
 import pickle
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 
 from Networks import EncoderLinearQuery, DecoderKeyValueGCNMultiEmbedding
 from Auxiliary import DataLoaderMedRec
@@ -10,12 +10,14 @@ from itertools import combinations
 from sklearn.metrics import average_precision_score
 from Parameters import Params
 
+params = Params()
+
 
 class EvaluationMedRec:
     def __init__(self, device, concept2id_mapping_file, patient_records_file, ddi_matrix_file,
                  predict_prob_threshold=0.5, ehr_matrix_file=None):
         self.device = device
-        concept2id_object = np.load(concept2id_mapping_file)
+        concept2id_object = dill.load(open(concept2id_mapping_file, 'rb'))
         self.concept2id_medications = concept2id_object['concept2id_prescriptions']
         self.medication_count = self.concept2id_medications.get_concept_count()
         self.diagnoses_count = concept2id_object['concept2id_diagnoses'].get_concept_count()
@@ -26,8 +28,6 @@ class EvaluationMedRec:
         # self.embedding_procedures = None
         # self.embedding_medications = None
         self.data_loader = None
-        self.encoder_type = None
-        self.decoder_type = None
         self.encoder = None
         self.decoder = None
         self.load_model_name = None
@@ -36,7 +36,7 @@ class EvaluationMedRec:
         self.ehr_matrix_file = ehr_matrix_file
         self.ehr_matrix = None
         if self.ehr_matrix_file is not None:
-            self.ehr_matrix = np.load(self.ehr_matrix_file)
+            self.ehr_matrix = dill.load(open(self.ehr_matrix_file, 'rb'))
 
     def get_ddi_rate(self, medications):
         return self.evaluate_utils.get_ddi_rate(medications)
@@ -88,7 +88,7 @@ class EvaluationMedRec:
         predict_medications = np.where(predict_multi_hot == 1)[0]
         return predict_medications, predict_prob, all_attention
 
-    def evaluateIters(self):
+    def evaluateIters(self, save_predict_result_file):
         patient_count = self.data_loader.patient_count
         total_metric_jaccard = 0.0
         total_metric_precision = 0.0
@@ -137,21 +137,20 @@ class EvaluationMedRec:
         print(' coverage:', coverage)
         print('    prauc:', total_prauc / patient_count)
 
-        pickle.dump(tmp_predict_medications, open('data/predict_medications', 'wb'))
+        if not os.path.exists(save_predict_result_file):
+            os.makedirs(save_predict_result_file)
+        pickle.dump(tmp_predict_medications,
+                    open(os.path.join(save_predict_result_file, 'predict_medications.pkl'), 'wb'))
 
-    def evaluate(self, load_model_name, patient_ddi_rate, input_size, hidden_size, encoder_n_layers,
-                 encoder_bidirectional, output_size, hop, encoder_type, decoder_type, attn_type_kv='dot',
-                 attn_type_embedding='dot', data_mode='validation'):
+    def evaluate(self, load_model_name, save_predict_result_file, patient_ddi_rate, input_size, hidden_size,
+                 encoder_n_layers, encoder_bidirectional, hop, attn_type_kv='dot', attn_type_embedding='dot',
+                 data_mode='validation'):
         print('load model from: ', load_model_name)
         self.load_model_name = load_model_name
         checkpoint = torch.load(self.load_model_name)
         # checkpoint=torch.load(self.load_model_name,map_location='cpu)
         encoder_sd = checkpoint['encoder']
         decoder_sd = checkpoint['decoder']
-
-        self.encoder_type = encoder_type
-        self.decoder_type = decoder_type
-
         print('building models >>>')
         self.encoder = EncoderLinearQuery(self.device, input_size, hidden_size, self.diagnoses_count,
                                           self.procedures_count, encoder_n_layers,
@@ -172,12 +171,13 @@ class EvaluationMedRec:
 
         self.data_loader = DataLoaderMedRec(self.patient_records_file, patient_ddi_rate, data_mode=data_mode)
         print('evaluating >>>')
-        self.evaluateIters()
+        self.evaluateIters(save_predict_result_file)
 
 
 class EvaluationUtil:
     def __init__(self, ddi_matrix_file):
-        self.ddi_matrix = np.load(ddi_matrix_file)['ddi_matrix']
+        # self.ddi_matrix = np.load(ddi_matrix_file)['ddi_matrix']
+        self.ddi_matrix = dill.load(open(ddi_matrix_file, 'rb'))['ddi_matrix']
 
     def precision_auc(self, predict_prob, target_prescriptions):
         # all_micro = []
@@ -221,3 +221,11 @@ class EvaluationUtil:
             return 0
         f1 = 2.0 * precision * recall / (precision + recall)
         return f1
+
+
+def evaluate(load_model_name, save_predict_result_file, patient_ddi_rate, input_size, hidden_size, encoder_n_layers,
+             encoder_bidirectional, hop, attn_type_kv, attn_type_embedding):
+    module = EvaluationMedRec(params.device, params.CONCEPTID_FILE, params.PATIENT_RECORDS_FILE_ACCUMULATE,
+                              params.DDI_MATRIX_FILE, 0.5, params.EHR_MATRIX_FILE)
+    module.evaluate(load_model_name, save_predict_result_file, patient_ddi_rate, input_size, hidden_size,
+                    encoder_n_layers, encoder_bidirectional, hop, attn_type_kv, attn_type_embedding)
