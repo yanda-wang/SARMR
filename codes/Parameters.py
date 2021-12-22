@@ -13,7 +13,7 @@ class Params:
 
         self.OPT_SPLIT_TAG_ADMISSION = -1
         self.OPT_SPLIT_TAG_VARIABLE = -2
-        self.OPT_MODEL_MAX_EPOCH = 2
+        self.OPT_MODEL_MAX_EPOCH = 40
         self.OPT_PATIENT_DDI_RATE = 0.4
         self.OPT_METRIC_TYPE = 'f1'
 
