@@ -14,7 +14,7 @@ class Params:
         self.OPT_SPLIT_TAG_ADMISSION = -1
         self.OPT_SPLIT_TAG_VARIABLE = -2
         self.OPT_MODEL_MAX_EPOCH = 2
-        self.OPT_PATIENT_DDI_RATE = 0.1
+        self.OPT_PATIENT_DDI_RATE = 0.4
         self.OPT_METRIC_TYPE = 'f1'
 
         self.PRETRAINED_EMBEDDING_MEDICATION = None
@@ -24,8 +24,8 @@ class Params:
         self.LOSS_PROPORTION_BCE = 0.9
         self.LOSS_PROPORTION_Multi_Margin = 0.1
 
-        self.INPUT_SIZE = 10
-        self.HIDDEN_SIZE = 10
+        self.INPUT_SIZE = 200
+        self.HIDDEN_SIZE = 200
 
         self.REAL_label = 1
         self.FAKE_label = 0
