@@ -40,6 +40,20 @@ you can find the first four datasets in the file data, and drug-DDI.csv could be
 
 put all these datasets in a file named as "data" under your Python project, and run PrepareDataset.py to get all the files.
 
+the results are:
+
+concepts2id_mapping.pkl: a mapping between original medical codes and vocabularies;
+
+ddi_matrix_tail_top100.pkl: a matrix that indicatess whether two drugs would lead to DDI;
+
+ehr_matrix_1.0.pkl: a matrix that indicates the co-occurrence of drugs;
+
+patient_records_final.pkl: patient records;
+
+patient_records_accumulate_tail_top100.pkl: patient records stored in a dictionary, for example, dict[0.5] stores all patients whose DDI rate<=0.5;
+
+patient_records_separate_tail_top100.pkl: patient records stored in a dictionary, for example, dict[0.5] stores all patients whose DDI rate are between (0.4,0.5]
+
 # Code
 
 Auxiliary.py: data loader
