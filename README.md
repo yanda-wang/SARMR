@@ -82,6 +82,8 @@ After preparing all the required datasets:
 
 (3) run the function MedRecGANTraining in Training.py to train SARMR, you can find the model in the directory specified by "save_model_path".
 
+(4) run the function evaluate in Evaluation.py to evaluate your model, use the parameter 'load_model_name' to indicate the model you want to use.
+
 # Hyper-parameters
 We use bayesian optimization to tune hyper-parameters, and conduct the optimization using [scikit-optimize](https://github.com/scikit-optimize/scikit-optimize) speficially. Lists of all final parameters as well as range of values tried per parameter during development could be found in dictionary Hyper-parameters.
 
