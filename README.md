@@ -14,7 +14,7 @@ Python 3.7
 
 # Data
 
-Experiments are carried out based on [MIMIC-III](https://mimic.physionet.org)， which is a real-world Electoric Healthcare Records (EHRs) dataset, and it collects clinical information related to over 45,000 patients. The diagnoses and procedures are used as inputs of SARMR, and the medications prescribed in the first 24 hours of each admission are selected out as ground truths.
+Experiments are carried out based on [MIMIC-III](https://mimic.physionet.org)， which is a real-world Electoric Healthcare Records (EHRs) dataset, and it collects clinical information related to over 45,000 patients. The diagnoses and procedures are used as inputs of SARMR, and the medications of each admission are selected out as ground truths.
 
 To prepare the datasets, get the following three tables from [MIMIC-III](https://mimic.physionet.org):
 
